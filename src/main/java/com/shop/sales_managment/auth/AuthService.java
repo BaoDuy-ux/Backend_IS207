@@ -342,7 +342,7 @@ public class AuthService {
 
                 exposed = code;
 
-                message = "Không gửi được email (kiểm tra Gmail App Password). Dùng mã trên màn hình: "
+                message = "Không gửi được email (kiểm tra cấu hình SMTP). Dùng mã trên màn hình: "
 
                         + code;
 
@@ -352,7 +352,7 @@ public class AuthService {
 
             exposed = code;
 
-            message = "Chưa cấu hình Gmail trên server. Mã đặt lại (hiện trên màn hình): "
+            message = "Chưa cấu hình email trên server. Mã đặt lại (hiện trên màn hình): "
 
                     + code + " — hết hạn sau " + resetProperties.getExpiresMinutes() + " phút.";
 

@@ -35,9 +35,7 @@ public class PasswordResetMailService {
         if (!hasSmtpCreds) {
             return false;
         }
-        if (!mailProperties.isEnabled()) {
-            return true;
-        }
+        if (!mailProperties.isEnabled()) return false;
         String from = resolveFrom();
         return !from.isBlank() && from.contains("@");
     }
