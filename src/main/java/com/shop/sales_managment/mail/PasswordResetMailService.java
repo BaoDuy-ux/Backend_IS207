@@ -17,25 +17,32 @@ public class PasswordResetMailService {
     private final MailProperties mailProperties;
     private final String smtpUsername;
     private final String smtpPassword;
+    private final ResendClient resendClient;
 
     public PasswordResetMailService(
             JavaMailSender mailSender,
             MailProperties mailProperties,
             @Value("${spring.mail.username:}") String smtpUsername,
-            @Value("${spring.mail.password:}") String smtpPassword
+            @Value("${spring.mail.password:}") String smtpPassword,
+            @Value("${RESEND_API_KEY:}") String resendApiKey
     ) {
         this.mailSender = mailSender;
         this.mailProperties = mailProperties;
         this.smtpUsername = smtpUsername == null ? "" : smtpUsername.trim();
         this.smtpPassword = smtpPassword == null ? "" : smtpPassword.trim();
+        this.resendClient = new ResendClient(resendApiKey);
     }
 
     public boolean isReady() {
-        boolean hasSmtpCreds = !smtpUsername.isBlank() && !smtpPassword.isBlank();
-        if (!hasSmtpCreds) {
-            return false;
-        }
         if (!mailProperties.isEnabled()) return false;
+
+        if (resendClient.isConfigured()) {
+            String from = resolveFrom();
+            return !from.isBlank() && from.contains("@");
+        }
+
+        boolean hasSmtpCreds = !smtpUsername.isBlank() && !smtpPassword.isBlank();
+        if (!hasSmtpCreds) return false;
         String from = resolveFrom();
         return !from.isBlank() && from.contains("@");
     }
@@ -53,14 +60,30 @@ public class PasswordResetMailService {
         }
 
         String name = (displayName == null || displayName.isBlank()) ? "bạn" : displayName.trim();
+        String from = resolveFrom();
+        String subject = "IS207 Fashion — Mã đặt lại mật khẩu";
+        String html = buildHtml(name, code, expiresMinutes);
+
+        // Prefer HTTPS API (works on Railway where SMTP can be blocked).
+        if (resendClient.isConfigured()) {
+            try {
+                resendClient.sendHtml(from, mailProperties.getFromName(), toEmail, subject, html);
+                log.info("Password reset email sent via Resend to {}", maskEmail(toEmail));
+                return;
+            } catch (Exception ex) {
+                log.error("Resend send failed for {}", maskEmail(toEmail), ex);
+                // fall through to SMTP if configured
+            }
+        }
+
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        helper.setFrom(resolveFrom(), mailProperties.getFromName());
+        helper.setFrom(from, mailProperties.getFromName());
         helper.setTo(toEmail);
-        helper.setSubject("IS207 Fashion — Mã đặt lại mật khẩu");
-        helper.setText(buildHtml(name, code, expiresMinutes), true);
+        helper.setSubject(subject);
+        helper.setText(html, true);
         mailSender.send(message);
-        log.info("Password reset email sent to {}", maskEmail(toEmail));
+        log.info("Password reset email sent via SMTP to {}", maskEmail(toEmail));
     }
 
     public static String maskEmail(String email) {
