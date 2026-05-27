@@ -1,10 +1,10 @@
 # Build
 FROM eclipse-temurin:17-jdk-alpine AS build
 WORKDIR /app
-COPY mvnw mvnw.cmd pom.xml ./
-COPY .mvn .mvn
-COPY src src
-RUN chmod +x mvnw && ./mvnw -q -DskipTests package
+RUN apk add --no-cache maven
+COPY pom.xml .
+COPY src ./src
+RUN mvn -q -DskipTests package
 
 # Run
 FROM eclipse-temurin:17-jre-alpine
